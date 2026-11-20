@@ -59,6 +59,9 @@ export function skip(state: State, id: string): void {
   item.status = "skipped";
 }
 
+/** Issue titles are untrusted: stop `<!channel>`, `<@U…>` and `<url|text>` from turning into Slack mentions or links. */
+const slackEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 /** A short Markdown summary of what's waiting, for the terminal or Slack. */
 export function digest(state: State): string {
   const q = queue(state);
@@ -67,7 +70,7 @@ export function digest(state: State): string {
   for (const e of q.slice(0, 20)) {
     const s = e.suggestion;
     const bits = [s.labels.length ? `labels: ${s.labels.join(", ")}` : "", s.duplicates.length ? `dup? ${s.duplicates.map((x) => `#${x.number}`).join(" ")}` : "", s.needsInfo ? "needs info" : ""];
-    lines.push(`• <${e.url}|${e.id}> ${e.title.slice(0, 80)}${bits.some(Boolean) ? ` (${bits.filter(Boolean).join("; ")})` : ""}`);
+    lines.push(`• <${e.url}|${e.id}> ${slackEscape(e.title.slice(0, 80))}${bits.some(Boolean) ? ` (${bits.filter(Boolean).join("; ")})` : ""}`);
   }
   if (q.length > 20) lines.push(`…and ${q.length - 20} more`);
   return lines.join("\n");
