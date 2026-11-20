@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+
+# local state (issue text, embeddings, drafts) — never commit
+.repo-desk/
+
+# model weights and large files
+*.gguf
+*.safetensors
+*.bin

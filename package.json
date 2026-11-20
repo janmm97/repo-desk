@@ -1,0 +1,36 @@
+{
+  "name": "repo-desk",
+  "version": "0.1.0",
+  "description": "A GitHub maintainer desk that runs on One and a local LM Studio model: finds duplicate issues, suggests labels, drafts replies. You approve every write.",
+  "license": "MIT",
+  "author": "Jan (janmm97)",
+  "type": "module",
+  "bin": {
+    "repo-desk": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "desk": "node dist/cli.js run"
+  },
+  "keywords": [
+    "github",
+    "issue-triage",
+    "one-cli",
+    "lm-studio",
+    "local-llm",
+    "ai-agents"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}
