@@ -13,7 +13,7 @@ if (process.argv.includes("--no-model") || !(await lm.available())) lm = undefin
 const repo = { labels: data.labels, items: {} };
 for (const i of data.issues) {
   repo.items[i.number] = {
-    repo: "janmm97/snapcap-bench", number: i.number, title: i.title, body: i.body, isPr: false, state: "open", labels: [],
+    repo: "example/snapcap", number: i.number, title: i.title, body: i.body, isPr: false, state: "open", labels: [],
     author: "user", url: "", createdAt: "", updatedAt: "", status: "new",
   };
 }
