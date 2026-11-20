@@ -131,6 +131,25 @@ describe("sync", () => {
     expect(after.suggestion).toBeUndefined();
   });
 
+  it("never skips changes when the limit cuts an incremental sync short", async () => {
+    const state: State = { version: 1, repos: {} };
+    await syncRepo(fakeGh([[issue(1)]]).gh, state, "o/r");
+    const r = state.repos["o/r"]!;
+    const first = r.syncedAt!;
+    // 3 items changed since; with limit 2 the oldest two come first (asc), and syncedAt stops at the last one seen.
+    const changed = [1, 2, 3].map((n) => issue(n, { updatedAt: `2026-12-0${n}T00:00:00Z`, title: `v2 ${n}` }));
+    const { gh, run } = fakeGh([changed.slice(0, 2), changed.slice(2)]);
+    expect((await syncRepo(gh, state, "o/r", 2)).fetched).toBe(2);
+    const body = JSON.parse((run as any).mock.calls[1][0].at(-2));
+    expect(body).toMatchObject({ direction: "asc", since: first });
+    expect(r.syncedAt).toBe("2026-12-02T00:00:00Z");
+    expect(r.items[3]).toBeUndefined();
+    // a short page means we caught up: syncedAt goes to "now"
+    await syncRepo(fakeGh([[changed[2]!]]).gh, state, "o/r", 2);
+    expect(r.items[3]).toBeDefined();
+    expect(r.syncedAt).not.toBe("2026-12-02T00:00:00Z");
+  });
+
   it("keeps an applied item's status when only metadata changes", async () => {
     const state: State = { version: 1, repos: {} };
     await syncRepo(fakeGh([[issue(1)]]).gh, state, "o/r");
@@ -167,6 +186,13 @@ describe("cli sync", () => {
     expect(state.repos["o/r"]!.labels).toEqual([{ name: "bug", description: "Broken" }]);
     expect(state.repos["o/r"]!.items[2]).toMatchObject({ isPr: true, status: "new", author: "someone" });
     log.mockRestore();
+  });
+
+  it("rejects a --limit that is not a positive whole number", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await main(["sync", "--limit", "abc"], { env })).toBe(2);
+    expect(await main(["sync", "--limit", "0"], { env })).toBe(2);
+    err.mockRestore();
   });
 
   it("explains a missing REPOS instead of crashing", async () => {

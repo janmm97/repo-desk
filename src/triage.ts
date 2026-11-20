@@ -8,10 +8,14 @@ const JACCARD_THRESHOLD = 0.5;
 
 export const issueText = (i: Pick<Item, "title" | "body">) => `${i.title}\n\n${i.body}`.slice(0, MAX_TEXT);
 
+/** Issue text for the prompt: it can't close our <untrusted_issue> wrapper and fake what comes after it. */
+const fence = (s: string) => s.replace(/<(\/?)untrusted_issue/gi, "<$1untrusted-issue");
+
 /** Strips @mentions and HTML comments so a drafted reply can't ping people or hide text. */
 export function cleanReply(s: string): string {
   return s
     .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<!--[\s\S]*$/, "") // an unterminated comment would hide everything after it
     .replace(/@(?=[\w-])/g, "@​")
     .trim()
     .slice(0, MAX_REPLY);
@@ -88,7 +92,7 @@ export async function suggestWithModel(lm: LocalModel, item: Item, labels: Label
     `Allowed labels:\n${labels.map((l) => `- ${l.name}${l.description ? `: ${l.description}` : ""}`).join("\n") || "(none)"}`,
     `Likely duplicates: ${dups.map((d) => `#${d.number} "${d.title}"`).join(", ") || "none"}`,
     `Type: ${item.isPr ? "pull request" : "issue"} #${item.number} by ${item.author}`,
-    `<untrusted_issue>\n${issueText(item)}\n</untrusted_issue>`,
+    `<untrusted_issue>\n${fence(issueText(item))}\n</untrusted_issue>`,
   ].join("\n\n");
   const out = await lm.json<ModelOut>(SYSTEM, user, schema);
   return {
@@ -101,10 +105,11 @@ export async function suggestWithModel(lm: LocalModel, item: Item, labels: Label
 }
 
 const RULES: [RegExp, RegExp][] = [
-  [/bug|defect/i, /\b(error|crash|exception|fails?|broken|traceback|regression|doesn'?t work|not working)\b/i],
-  [/enhancement|feature/i, /\b(feature|add support|would be nice|request|proposal|could you add)\b/i],
-  [/question|support|help/i, /(\?\s*$|^how (do|can|to)\b|\bis it possible\b)/im],
-  [/doc/i, /\b(docs?|documentation|readme|typo)\b/i],
+  [/\b(bug|defect)\b/i, /\b(error|crash|exception|fails?|broken|traceback|regression|doesn'?t work|not working)\b/i],
+  [/\b(enhancement|feature)\b/i, /\b(feature|add support|would be nice|request|proposal|could you add)\b/i],
+  // "help wanted" is a maintainer decision, and "docker" is not "docs": match whole words only.
+  [/\b(question|support)\b|^help$/i, /(\?\s*$|^how (do|can|to)\b|\bis it possible\b)/im],
+  [/\bdocs?\b|documentation/i,/\b(docs?|documentation|readme|typo)\b/i],
 ];
 
 /** No model needed: label names and simple keyword rules, plus a template reply. */

@@ -51,6 +51,10 @@ async function sync(argv: string[], deps: Deps): Promise<number> {
     return 2;
   }
   const limit = Number(flag(argv, "--limit") ?? 200);
+  if (!Number.isInteger(limit) || limit < 1) {
+    console.error("--limit must be a positive whole number.");
+    return 2;
+  }
   const key = await resolveKey(deps.run, "github", deps.env.ONE_GITHUB_KEY);
   const gh = new GitHub(deps.run, key);
   const state = loadState(cfg.home);
