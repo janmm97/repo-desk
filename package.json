@@ -18,7 +18,8 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "desk": "node dist/cli.js run"
+    "desk": "node dist/cli.js run",
+    "bench": "npm run build && node bench/run.mjs"
   },
   "keywords": [
     "github",
