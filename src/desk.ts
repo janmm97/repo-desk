@@ -29,7 +29,7 @@ const reply=el("textarea",{value:s.reply}),msg=el("span",{className:"meta"});
 const act=async(fn)=>{try{await fn();await load()}catch(err){msg.textContent=err.message}};
 const apply=el("button",{className:"go",textContent:"Apply",onclick:()=>act(()=>api("/api/apply",{id:e.id,labels:boxes.map(b=>b.firstChild).filter(c=>c.checked&&!c.disabled).map(c=>c.dataset.name),reply:reply.value}))});
 const skip=el("button",{textContent:"Skip",onclick:()=>act(()=>api("/api/skip",{id:e.id}))});
-return el("article",{},el("h2",{},el("a",{href:e.url,target:"_blank",rel:"noopener noreferrer",textContent:e.id})," "+e.title),
+return el("article",{},el("h2",{},el("a",{href:/^https:\\/\\/github\\.com\\//.test(e.url)?e.url:"#",target:"_blank",rel:"noopener noreferrer",textContent:e.id})," "+e.title),
 el("div",{className:"meta",textContent:(e.isPr?"PR":"Issue")+" by "+e.author+" · "+s.mode+(s.needsInfo?" · needs info":"")+(s.duplicates.length?" · possible duplicates: "+s.duplicates.map(d=>"#"+d.number+" ("+d.score+")").join(", "):"")}),
 el("div",{},...boxes),reply,apply,skip,msg)}
 load().catch(e=>status.textContent=e.message);`;
@@ -48,7 +48,7 @@ export function startDesk(h: DeskHandlers, port: number, token = randomBytes(24)
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+      "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     });
     res.end(body);
   };

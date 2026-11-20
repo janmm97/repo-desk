@@ -42,6 +42,14 @@ describe("review actions", () => {
     expect(digest(state())).toMatch(/1 waiting[\s\S]*o\/r#1.*dup\? #2.*needs info/);
   });
 
+  it("digest escapes Slack control sequences in titles", () => {
+    const s = state();
+    s.repos["o/r"]!.items[1]!.title = "<!channel> <https://evil.example|re-auth> & more";
+    const d = digest(s);
+    expect(d).toContain("&lt;!channel&gt; &lt;https://evil.example|re-auth&gt; &amp; more");
+    expect(d).not.toContain("<!channel>");
+  });
+
   it("apply writes only new, existing labels and a cleaned reply", async () => {
     const s = state();
     const { gh, run } = fakeGh();
