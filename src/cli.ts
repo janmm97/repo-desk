@@ -5,6 +5,8 @@ import { loadConfig } from "./config.js";
 import { GitHub, makeRunOne, resolveKey, type RunOne } from "./one.js";
 import { loadState, saveState } from "./store.js";
 import { syncRepo } from "./sync.js";
+import { LocalModel } from "./lm.js";
+import { triageRepo } from "./triage.js";
 
 const VERSION: string = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -16,6 +18,9 @@ Usage: repo-desk <command> [options]
 
 Commands:
   sync [--limit N] Pull issues and PRs from REPOS through One (read-only)
+  triage [--limit N] [--no-model]
+                   Suggest labels, duplicates and a reply for new open items
+                   (local LM Studio model; keyword rules when it isn't running)
   help             Show this help
   version          Print the version
 
@@ -45,6 +50,37 @@ async function sync(argv: string[], deps: Deps): Promise<number> {
   return 0;
 }
 
+async function triage(argv: string[], deps: Deps): Promise<number> {
+  const cfg = loadConfig(deps.env);
+  const state = loadState(cfg.home);
+  const repos = Object.keys(state.repos).filter((r) => !cfg.repos.length || cfg.repos.includes(r));
+  if (!repos.length) {
+    console.error("Nothing synced yet. Run `repo-desk sync` first.");
+    return 2;
+  }
+  let lm: LocalModel | undefined = new LocalModel(cfg);
+  if (argv.includes("--no-model") || !(await lm.available())) {
+    if (!argv.includes("--no-model")) console.error(`LM Studio not reachable at ${cfg.lmUrl} with ${cfg.chatModel}: using keyword rules.`);
+    lm = undefined;
+  }
+  const limit = flag(argv, "--limit") ? Number(flag(argv, "--limit")) : undefined;
+  for (const repo of repos) {
+    const n = await triageRepo(state.repos[repo]!, {
+      lm,
+      threshold: cfg.dupThreshold,
+      limit,
+      onItem: (i, ms) => {
+        saveState(cfg.home, state);
+        const s = i.suggestion!;
+        console.log(`${repo}#${i.number} [${s.labels.join(", ") || "-"}]${s.duplicates.length ? ` dup? ${s.duplicates.map((d) => `#${d.number}`).join(" ")}` : ""}${s.needsInfo ? " needs-info" : ""} (${(ms / 1000).toFixed(1)}s)`);
+      },
+    });
+    saveState(cfg.home, state);
+    console.log(`${repo}: ${n} suggested (${lm ? "local model" : "keyword rules"})`);
+  }
+  return 0;
+}
+
 export interface Deps {
   env: NodeJS.ProcessEnv;
   run: RunOne;
@@ -56,6 +92,7 @@ export async function main(argv: string[], deps?: Partial<Deps>): Promise<number
   const [cmd = "help"] = argv;
   try {
     if (cmd === "sync") return await sync(argv.slice(1), d);
+    if (cmd === "triage") return await triage(argv.slice(1), d);
   } catch (e) {
     console.error(`repo-desk: ${(e as Error).message}`);
     return 1;
