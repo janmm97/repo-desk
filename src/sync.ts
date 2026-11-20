@@ -24,7 +24,9 @@ export async function syncRepo(gh: GitHub, state: State, repo: string, limit = 2
   let more = false;
   for (let page = 1; res.fetched < limit; page++) {
     const batch = await gh.listIssues(repo, { since: r.syncedAt, direction, page, perPage });
-    for (const raw of batch.slice(0, limit - res.fetched)) {
+    const take = batch.slice(0, limit - res.fetched);
+    if (take.length < batch.length) more = true; // the cap cut this page short
+    for (const raw of take) {
       const prev = r.items[raw.number];
       const next = toItem(repo, raw, prev);
       if (!prev) res.added++;
@@ -34,7 +36,7 @@ export async function syncRepo(gh: GitHub, state: State, repo: string, limit = 2
       if (!lastSeen || raw.updatedAt > lastSeen) lastSeen = raw.updatedAt;
     }
     if (batch.length < perPage) break;
-    more = res.fetched >= limit;
+    if (res.fetched >= limit) more = true;
   }
   // `since` is inclusive, so resuming at the last updatedAt re-reads at most the boundary items.
   r.syncedAt = incremental && more ? lastSeen : startedAt;
