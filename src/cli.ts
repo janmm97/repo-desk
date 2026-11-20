@@ -5,7 +5,7 @@ import { loadConfig } from "./config.js";
 import { apply, digest, queue, skip, type Decision } from "./actions.js";
 import { startDesk } from "./desk.js";
 import { GitHub, makeRunOne, resolveKey, slackPost, type RunOne } from "./one.js";
-import { loadState, saveState } from "./store.js";
+import { findItem, loadState, saveState } from "./store.js";
 import { syncRepo } from "./sync.js";
 import { LocalModel } from "./lm.js";
 import { triageRepo } from "./triage.js";
@@ -105,9 +105,14 @@ async function applyAndSave(deps: Deps, id: string, d: Decision) {
   inFlight.add(id);
   try {
     const cfg = loadConfig(deps.env);
+    const gh = await github(deps);
     const state = loadState(cfg.home);
-    const res = await apply(await github(deps), state, id, d);
-    saveState(cfg.home, state);
+    const res = await apply(gh, state, id, d);
+    // The writes took seconds; a sync or triage may have saved meanwhile. Re-read, so we don't overwrite it.
+    const fresh = loadState(cfg.home);
+    const done = findItem(state, id);
+    Object.assign(findItem(fresh, id), { status: done.status, labels: done.labels });
+    saveState(cfg.home, fresh);
     return res;
   } finally {
     inFlight.delete(id);
