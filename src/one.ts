@@ -10,6 +10,9 @@ export const ACTIONS = {
   slackPost: "conn_mod_def::GJ7H84zBlaI::BCfuA16aTaGVIax5magsLA",
 } as const;
 
+/** A hung One call must not hang the desk or a sync forever. */
+const ONE_TIMEOUT_MS = 120_000;
+
 export type RunOne = (args: string[]) => Promise<any>;
 
 /** How to start the One CLI without a shell, so issue text can never reach a command line parser. */
@@ -27,13 +30,14 @@ export function makeRunOne(env: NodeJS.ProcessEnv = process.env): RunOne {
   const { cmd, pre } = oneCommand(env);
   return (args) =>
     new Promise((resolve, reject) => {
-      const child = spawn(cmd, [...pre, "--agent", ...args], { env, shell: false, windowsHide: true });
+      const child = spawn(cmd, [...pre, "--agent", ...args], { env, shell: false, windowsHide: true, timeout: ONE_TIMEOUT_MS });
       let out = "";
       let err = "";
       child.stdout.on("data", (d) => (out += d));
       child.stderr.on("data", (d) => (err += d));
-      child.on("error", (e) => reject(new Error(`Could not start the One CLI (${e.message}). Install it: npm i -g @withone/cli`)));
-      child.on("close", (code) => {
+      child.on("error", (e) => reject(new Error(`Could not start the One CLI (${e.message}). Install it with: npm i -g @withone/cli, or set ONE_BIN to the CLI entry.`)));
+      child.on("close", (code, signal) => {
+        if (signal) return reject(new Error(`One CLI was stopped (${signal}) after ${ONE_TIMEOUT_MS / 1000}s without finishing`));
         let json: any;
         try {
           json = JSON.parse(out || err);
@@ -93,7 +97,7 @@ export class GitHub {
   }
 
   /** Read-only, but One exposes it as POST, so the CLI wants --confirm-write. */
-  listIssues(repo: string, q: { since?: string; page: number; perPage: number }): Promise<RawIssue[]> {
+  listIssues(repo: string, q: { since?: string; direction?: "asc" | "desc"; page: number; perPage: number }): Promise<RawIssue[]> {
     const body = { connectionKey: this.key, ...split(repo), state: "all", sort: "updated", direction: "desc", ...q };
     if (!body.since) delete body.since;
     return this.exec(ACTIONS.listIssues, { body, write: true });
