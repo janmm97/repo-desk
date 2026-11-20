@@ -84,6 +84,9 @@ The issues are synthetic and few, so treat the numbers as a smoke test, not a le
 - **One reply per item.** No threads or follow-ups, and repo-desk never closes, assigns or locks anything.
 - **Small repos first.** `sync` fetches at most `--limit` items (default 200) per run.
 - **English prompts.** Other languages may work but aren't tested.
+- **Windows.** repo-desk looks for the One CLI under `%APPDATA%
+pm`. If you installed Node with nvm-windows, Volta or pnpm, set `ONE_BIN` to the CLI entry (`…@withoneibini.js`).
+- **Local model path is unmeasured end to end.** The numbers above are keyword mode. Run `npm run bench` with LM Studio up to get your own.
 
 ## Contributing
 
