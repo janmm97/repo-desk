@@ -48,7 +48,7 @@ export function startDesk(h: DeskHandlers, port: number, token = randomBytes(24)
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+      "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     });
     res.end(body);
   };

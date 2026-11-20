@@ -55,9 +55,9 @@ export function loadState(home: string): State {
 }
 
 export function saveState(home: string, state: State): void {
-  mkdirSync(home, { recursive: true });
+  mkdirSync(home, { recursive: true, mode: 0o700 });
   const tmp = `${file(home)}.tmp`;
-  writeFileSync(tmp, JSON.stringify(state));
+  writeFileSync(tmp, JSON.stringify(state), { mode: 0o600 }); // issue bodies may be private
   renameSync(tmp, file(home));
 }
 
