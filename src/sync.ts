@@ -16,8 +16,14 @@ export async function syncRepo(gh: GitHub, state: State, repo: string, limit = 2
 
   const perPage = Math.min(100, limit);
   const res: SyncResult = { repo, fetched: 0, added: 0, changed: 0 };
+  // First sync: newest first, capped at `limit`. Later syncs: oldest change first, so hitting the cap can never skip
+  // items; the next run carries on from the last change we saw.
+  const incremental = !!r.syncedAt;
+  const direction = incremental ? "asc" : "desc";
+  let lastSeen = r.syncedAt;
+  let more = false;
   for (let page = 1; res.fetched < limit; page++) {
-    const batch = await gh.listIssues(repo, { since: r.syncedAt, page, perPage });
+    const batch = await gh.listIssues(repo, { since: r.syncedAt, direction, page, perPage });
     for (const raw of batch.slice(0, limit - res.fetched)) {
       const prev = r.items[raw.number];
       const next = toItem(repo, raw, prev);
@@ -25,10 +31,13 @@ export async function syncRepo(gh: GitHub, state: State, repo: string, limit = 2
       else if (prev.updatedAt !== next.updatedAt) res.changed++;
       r.items[raw.number] = next;
       res.fetched++;
+      if (!lastSeen || raw.updatedAt > lastSeen) lastSeen = raw.updatedAt;
     }
     if (batch.length < perPage) break;
+    more = res.fetched >= limit;
   }
-  r.syncedAt = startedAt;
+  // `since` is inclusive, so resuming at the last updatedAt re-reads at most the boundary items.
+  r.syncedAt = incremental && more ? lastSeen : startedAt;
   return res;
 }
 
